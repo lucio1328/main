@@ -1,55 +1,58 @@
 package controller;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import annotation.AnnotationController;
-import java.util.List;
-
-import annotation.AnnotationController;
-
-import java.util.ArrayList;
-import jakarta.servlet.ServletContext;
-import java.io.File;
-import java.net.URL;
-import java.util.Enumeration;
+import annotation.AnnotationMethode;
 
 public class FrontController extends HttpServlet {
-    List<String> controllerList;
-    boolean initialized = false;
+    HashMap<String, Map<String, List<String>>> urlMethodMap;
+
+    @Override
+    public void init(ServletConfig conf) throws ServletException {
+        super.init(conf);
+        urlMethodMap = new HashMap<>();
+        initializeControllers();
+    }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
 
-        if (!initialized) {
-            initializeControllers();
-        }
+        PrintWriter out = response.getWriter();
+        String requestPath = request.getServletPath();
 
-        try (PrintWriter out = response.getWriter()) {
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>FrontController</title>");
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet FrontController</h1>");
-            out.println("<p>URL: " + request.getRequestURL() + "</p>");
-            if (controllerList.size() != 0) {
-                for (String controller : controllerList) {
-                    out.println("<p> Controller: " + controller + "</p>");
-                }
+        out.println("chemin: " + requestPath);
+
+        if (urlMethodMap.containsKey(requestPath)) {
+            Map<String, List<String>> controllerMethodMap = urlMethodMap.get(requestPath);
+            for (Map.Entry<String, List<String>> entry : controllerMethodMap.entrySet()) {
+                String controller = entry.getKey();
+                List<String> methods = entry.getValue();
+                out.println("<p>Controller: " + controller + " ; ");
+                out.println("Methods: " + methods + "</p>");
             }
-            out.println("</body>");
-            out.println("</html>");
+        } else {
+            out.println("Il n'y a pas de méthode associée à ce chemin");
         }
     }
 
     private void initializeControllers() {
-        controllerList = new ArrayList<>();
         try {
             ServletContext context = getServletContext();
             String packageName = context.getInitParameter("Controller");
@@ -64,8 +67,6 @@ public class FrontController extends HttpServlet {
                     scanControllers(file, packageName);
                 }
             }
-
-            initialized = true;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -85,11 +86,35 @@ public class FrontController extends HttpServlet {
             if (file.isDirectory()) {
                 scanControllers(file, packageName + "." + file.getName());
             } else if (file.getName().endsWith(".class")) {
-                String className = packageName + '.' + file.getName().substring(0, file.getName().length() - 6);
+                String className = packageName + "." + file.getName().substring(0, file.getName().length() - 6);
                 try {
                     Class<?> clazz = Class.forName(className);
                     if (clazz.isAnnotationPresent(AnnotationController.class)) {
-                        controllerList.add(className);
+                        Method[] methods = clazz.getDeclaredMethods();
+                        for (Method method : methods) {
+                            if (method.isAnnotationPresent(AnnotationMethode.class)) {
+                                AnnotationMethode annotation = method.getAnnotation(AnnotationMethode.class);
+                                String url = annotation.url();
+                                String methodName = method.getName();
+
+                                if (urlMethodMap.containsKey(url)) {
+                                    Map<String, List<String>> controllerMethodMap = urlMethodMap.get(url);
+                                    if (controllerMethodMap.containsKey(className)) {
+                                        controllerMethodMap.get(className).add(methodName);
+                                    } else {
+                                        List<String> methodList = new ArrayList<>();
+                                        methodList.add(methodName);
+                                        controllerMethodMap.put(className, methodList);
+                                    }
+                                } else {
+                                    Map<String, List<String>> controllerMethodMap = new HashMap<>();
+                                    List<String> methodList = new ArrayList<>();
+                                    methodList.add(methodName);
+                                    controllerMethodMap.put(className, methodList);
+                                    urlMethodMap.put(url, controllerMethodMap);
+                                }
+                            }
+                        }
                     }
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
