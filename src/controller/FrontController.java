@@ -1,125 +1,57 @@
 package controller;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import annotation.AnnotationController;
+import annotation.AnnotationMethode;
 import jakarta.servlet.ServletConfig;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import annotation.AnnotationController;
-import annotation.AnnotationMethode;
+import utilities.Mapping;
 
 public class FrontController extends HttpServlet {
-    HashMap<String, Map<String, List<String>>> urlMethodMap;
+    private String packageName; // Variable pour stocker le nom du package
+    private static List<String> controllerNames = new ArrayList<>();
+    HashMap<String, Mapping> urlMaping = new HashMap<>();
 
     @Override
-    public void init(ServletConfig conf) throws ServletException {
-        super.init(conf);
-        urlMethodMap = new HashMap<>();
-        initializeControllers();
+    public void init(ServletConfig config) throws ServletException {
+        super.init(config);
+        packageName = config.getInitParameter("Controller"); // Récupération du nom du package
+        scanControllers(packageName);
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
+        StringBuffer requestURL = request.getRequestURL();
+        String[] requestUrlSplitted = requestURL.toString().split("/");
+        String controllerSearched = requestUrlSplitted[requestUrlSplitted.length - 1];
 
         PrintWriter out = response.getWriter();
-        String requestPath = request.getServletPath();
+        response.setContentType("text/html");
 
-        out.println("chemin: " + requestPath);
-
-        if (urlMethodMap.containsKey(requestPath)) {
-            Map<String, List<String>> controllerMethodMap = urlMethodMap.get(requestPath);
-            for (Map.Entry<String, List<String>> entry : controllerMethodMap.entrySet()) {
-                String controller = entry.getKey();
-                List<String> methods = entry.getValue();
-                out.println("<p>Controller: " + controller + " ; ");
-                out.println("Methods: " + methods + "</p>");
-            }
+        if (!urlMaping.containsKey(controllerSearched)) {
+            out.println("<p>" + "Aucune methode associee a ce chemin." + "</p>");
         } else {
-            out.println("Il n'y a pas de méthode associée à ce chemin");
-        }
-    }
+            Mapping mapping = urlMaping.get(controllerSearched);
 
-    private void initializeControllers() {
-        try {
-            ServletContext context = getServletContext();
-            String packageName = context.getInitParameter("Controller");
+            out.println("<p> URL: " + requestURL.toString() + "</p>");
+            out.println("<p>nom du Classe :" + mapping.getClassName() + "</p>");
+            out.println("<p>nom du Methode " + mapping.getMethodeName() + "</p>");
 
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            Enumeration<URL> resources = classLoader.getResources(packageName.replace('.', '/'));
-
-            while (resources.hasMoreElements()) {
-                URL resource = resources.nextElement();
-                if (resource.getProtocol().equals("file")) {
-                    File file = new File(resource.toURI());
-                    scanControllers(file, packageName);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void scanControllers(File directory, String packageName) {
-        if (!directory.exists()) {
-            return;
-        }
-
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                scanControllers(file, packageName + "." + file.getName());
-            } else if (file.getName().endsWith(".class")) {
-                String className = packageName + "." + file.getName().substring(0, file.getName().length() - 6);
-                try {
-                    Class<?> clazz = Class.forName(className);
-                    if (clazz.isAnnotationPresent(AnnotationController.class)) {
-                        Method[] methods = clazz.getDeclaredMethods();
-                        for (Method method : methods) {
-                            if (method.isAnnotationPresent(AnnotationMethode.class)) {
-                                AnnotationMethode annotation = method.getAnnotation(AnnotationMethode.class);
-                                String url = annotation.url();
-                                String methodName = method.getName();
-
-                                if (urlMethodMap.containsKey(url)) {
-                                    Map<String, List<String>> controllerMethodMap = urlMethodMap.get(url);
-                                    if (controllerMethodMap.containsKey(className)) {
-                                        controllerMethodMap.get(className).add(methodName);
-                                    } else {
-                                        List<String> methodList = new ArrayList<>();
-                                        methodList.add(methodName);
-                                        controllerMethodMap.put(className, methodList);
-                                    }
-                                } else {
-                                    Map<String, List<String>> controllerMethodMap = new HashMap<>();
-                                    List<String> methodList = new ArrayList<>();
-                                    methodList.add(methodName);
-                                    controllerMethodMap.put(className, methodList);
-                                    urlMethodMap.put(url, controllerMethodMap);
-                                }
-                            }
-                        }
-                    }
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-            }
+            out.close();
         }
     }
 
@@ -134,4 +66,42 @@ public class FrontController extends HttpServlet {
             throws ServletException, IOException {
         processRequest(request, response);
     }
+
+    private void scanControllers(String packageName) {
+        try {
+
+            // Charger le package et parcourir les classes
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            String path = packageName.replace('.', '/');
+            URL resource = classLoader.getResource(path);
+            Path classPath = Paths.get(resource.toURI());
+            Files.walk(classPath)
+                    .filter(f -> f.toString().endsWith(".class"))
+                    .forEach(f -> {
+                        String className = packageName + "." + f.getFileName().toString().replace(".class", "");
+                        try {
+                            Class<?> clazz = Class.forName(className);
+                            if (clazz.isAnnotationPresent(AnnotationController.class)
+                                    && !Modifier.isAbstract(clazz.getModifiers())) {
+                                controllerNames.add(clazz.getSimpleName());
+                                Method[] methods = clazz.getMethods();
+
+                                for (Method m : methods) {
+                                    if (m.isAnnotationPresent(AnnotationMethode.class)) {
+                                        Mapping mapping = new Mapping(className, m.getName());
+                                        AnnotationMethode annotationMethode = m.getAnnotation(AnnotationMethode.class);
+                                        String annotationValue = annotationMethode.url();
+                                        urlMaping.put(annotationValue, mapping);
+                                    }
+                                }
+                            }
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }
