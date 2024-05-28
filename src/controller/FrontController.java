@@ -2,106 +2,83 @@ package controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
-import annotation.AnnotationController;
-import annotation.AnnotationMethode;
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import utilities.Mapping;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import util.*;
 
 public class FrontController extends HttpServlet {
-    private String packageName; // Variable pour stocker le nom du package
-    private static List<String> controllerNames = new ArrayList<>();
-    HashMap<String, Mapping> urlMaping = new HashMap<>();
+    List<String> controllerList;
+    HashMap<String, Mapping> urlMethod;
+    Utilities utl;
 
     @Override
-    public void init(ServletConfig config) throws ServletException {
-        super.init(config);
-        packageName = config.getInitParameter("Controller"); // Récupération du nom du package
-        scanControllers(packageName);
+    public void init() throws ServletException {
+        controllerList = new ArrayList<>();
+        urlMethod = new HashMap<>();
+        utl = new Utilities();
+        utl.initializeControllers(this, this.controllerList, urlMethod);
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        StringBuffer requestURL = request.getRequestURL();
-        String[] requestUrlSplitted = requestURL.toString().split("/");
-        String controllerSearched = requestUrlSplitted[requestUrlSplitted.length - 1];
+            throws ServletException, IOException, ClassNotFoundException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, SecurityException, InstantiationException, IllegalArgumentException {
+        response.setContentType("text/html;charset=UTF-8");
 
-        PrintWriter out = response.getWriter();
-        response.setContentType("text/html");
+        try (PrintWriter out = response.getWriter()) {
+            out.println("<!DOCTYPE html>");
+            out.println("<html>");
+            out.println("<head>");
+            out.println("<title>FrontController</title>");
+            out.println("</head>");
+            out.println("<body>");
+            out.println("<h1>Servlet FrontController</h1>");
+            out.println("<p>" + request.getRequestURL() + "</p>");
+            if (utl.ifMethod(request, this.urlMethod) != null) {
+                Mapping mapping = utl.ifMethod(request, this.urlMethod);
+                out.println("<p> Classe : " + mapping.getKey() + "</p>");
+                out.println("<p> Mehtode: " + mapping.getValue() + "</p>");
+                String classe = mapping.getKey();
+                String methodeName = mapping.getValue();
+                Class<?> clazz = Class.forName(classe);
+                Object o = clazz.getDeclaredConstructor().newInstance();
+                Method method = clazz.getMethod(methodeName, null);
+                Object result = method.invoke(o, null);
+                if (result != null) {
+                    out.println("<p>Résultat de la méthode : " + result.toString() + "</p>");
+                }
+            }else{
+                out.println("<p> Error 404 : Not found </p>");
+            }
 
-        if (!urlMaping.containsKey(controllerSearched)) {
-            out.println("<p>" + "Aucune methode associee a ce chemin." + "</p>");
-        } else {
-            Mapping mapping = urlMaping.get(controllerSearched);
-
-            out.println("<p> URL: " + requestURL.toString() + "</p>");
-            out.println("<p>nom du Classe :" + mapping.getClassName() + "</p>");
-            out.println("<p>nom du Methode " + mapping.getMethodeName() + "</p>");
-
-            out.close();
+            out.println("</body>");
+            out.println("</html>");
         }
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        processRequest(request, response);
-    }
-
-    private void scanControllers(String packageName) {
         try {
-
-            // Charger le package et parcourir les classes
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            String path = packageName.replace('.', '/');
-            URL resource = classLoader.getResource(path);
-            Path classPath = Paths.get(resource.toURI());
-            Files.walk(classPath)
-                    .filter(f -> f.toString().endsWith(".class"))
-                    .forEach(f -> {
-                        String className = packageName + "." + f.getFileName().toString().replace(".class", "");
-                        try {
-                            Class<?> clazz = Class.forName(className);
-                            if (clazz.isAnnotationPresent(AnnotationController.class)
-                                    && !Modifier.isAbstract(clazz.getModifiers())) {
-                                controllerNames.add(clazz.getSimpleName());
-                                Method[] methods = clazz.getMethods();
-
-                                for (Method m : methods) {
-                                    if (m.isAnnotationPresent(AnnotationMethode.class)) {
-                                        Mapping mapping = new Mapping(className, m.getName());
-                                        AnnotationMethode annotationMethode = m.getAnnotation(AnnotationMethode.class);
-                                        String annotationValue = annotationMethode.url();
-                                        urlMaping.put(annotationValue, mapping);
-                                    }
-                                }
-                            }
-                        } catch (ClassNotFoundException e) {
-                            e.printStackTrace();
-                        }
-                    });
+            processRequest(request, response);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        try {
+            processRequest(request, response);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
