@@ -54,8 +54,8 @@ public class Utilities {
                         controllerList.add(className);
                         Method[] methods = clazz.getDeclaredMethods();
                         for(Method method : methods) {
-                            if(method.isAnnotationPresent(AnnotationMethode.class)){
-                                AnnotationMethode annt = method.getAnnotation(AnnotationMethode.class);
+                            if(method.isAnnotationPresent(Get.class)){
+                                Get annt = method.getAnnotation(Get.class);
                                 Mapping map = new Mapping();
                                 map.add(clazz.getName(),method.getName()); 
                                 urlMethod.put(annt.value(),map);
