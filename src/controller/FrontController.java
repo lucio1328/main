@@ -10,6 +10,11 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.swing.RowFilter.Entry;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import util.*;
@@ -51,7 +56,21 @@ public class FrontController extends HttpServlet {
                 Method method = clazz.getMethod(methodeName, null);
                 Object result = method.invoke(o, null);
                 if (result != null) {
-                    out.println("<p>Résultat de la méthode : " + result.toString() + "</p>");
+                    if(result instanceof String){
+                        out.println("<p>Résultat de la méthode : " + result.toString() + "</p>");
+                    }
+                    else if (result instanceof ModelView) {
+                        ModelView mv = (ModelView) result;
+                        out.println("<p>ModelView detected.</p>");
+                        out.println("<p>URL: " + mv.getUrl() + "</p>");
+                        out.println("<p>Model Data:</p>");
+                        out.println("<ul>");
+                        for (Map.Entry<String, Object> entry : mv.getData().entrySet()) {
+                            request.setAttribute(entry.getKey(), entry.getValue());
+                        }
+                        request.getRequestDispatcher(mv.getUrl()).forward(request, response);
+                        out.println("</ul>");
+                    }
                 }
             }else{
                 out.println("<p> Error 404 : Not found </p>");
