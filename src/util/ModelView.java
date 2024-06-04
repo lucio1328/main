@@ -8,9 +8,8 @@ public class ModelView {
     HashMap<String, Object> data;
 
     /* COnstructors */
-    public ModelView(String url, HashMap<String, Object> data) {
-        this.url = url;
-        this.data = data;
+    public ModelView(String url) {
+        setUrl(url);
     }
     public ModelView() {
         data = new HashMap<>();
