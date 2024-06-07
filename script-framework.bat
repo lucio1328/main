@@ -17,4 +17,4 @@ REM Convertir le repertoire temp en .jar
 
     rmdir %temp%
 
-xcopy /y %nom_projet%.jar "C:\Users\ME-PC\Documents\GitHub\test\lib"
+xcopy /y %nom_projet%.jar "C:\Users\ME-PC\Documents\GitHub\SprintTest2\lib"
