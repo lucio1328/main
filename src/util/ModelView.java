@@ -24,7 +24,7 @@ public class ModelView {
     public void setProperties(HashMap<String,Object> properties) {
         this.properties = properties;
     }
-    public HashMap<String,Object> getProperties() {
+    public HashMap<String,Object> getData() {
         return this.properties;
     }
 }
