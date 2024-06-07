@@ -20,17 +20,15 @@ public class Utilities {
 
     // Sprint 1 : show the url
     public void initializeControllers(HttpServlet svr, List<String> controllerList,
-            HashMap<String, Mapping> urlMethod, List<Exception> errors) throws Exception {
+            HashMap<String, Mapping> urlMethod) throws Exception {
         try {
             ServletContext context = svr.getServletContext();
             String packageName = context.getInitParameter("Controller");
 
             if (packageName == null || packageName.trim().isEmpty()) {
-                errors.add(new Exception("No package controller defined"));
-                return;
+                throw new Exception("No package controller defined");
             } else if (!this.ifPackageExist(packageName)) {
-                errors.add(new Exception("Package '" + packageName + "' not found"));
-                return;
+                throw new Exception("Package '" + packageName + "' not found");
             } else {
                 ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 Enumeration<URL> resources = classLoader.getResources(packageName.replace('.', '/'));
@@ -39,19 +37,19 @@ public class Utilities {
                     URL resource = resources.nextElement();
                     if (resource.getProtocol().equals("file")) {
                         File file = new File(resource.toURI());
-                        scanControllers(file, packageName, controllerList, urlMethod, errors);
+                        scanControllers(file, packageName, controllerList, urlMethod);
                     }
                 }
             }
 
         } catch (Exception e) {
-            errors.add(e);
+            throw new Exception(e.getMessage());
         }
     }
 
     // Sprint 2 : show Controller
     public void scanControllers(File directory, String packageName, List<String> controllerList,
-            HashMap<String, Mapping> urlMethod, List<Exception> errors) throws Exception {
+            HashMap<String, Mapping> urlMethod) throws Exception {
         if (!directory.exists()) {
             return;
         }
@@ -63,7 +61,7 @@ public class Utilities {
 
         for (File file : files) {
             if (file.isDirectory()) {
-                scanControllers(file, packageName + "." + file.getName(), controllerList, urlMethod, errors);
+                scanControllers(file, packageName + "." + file.getName(), controllerList, urlMethod);
             } else if (file.getName().endsWith(".class")) {
                 String className = packageName + '.' + file.getName().substring(0, file.getName().length() - 6);
                 try {
@@ -80,8 +78,7 @@ public class Utilities {
                                     if (!urlMethod.containsKey(annt.value())) {
                                         urlMethod.put(annt.value(), map);
                                     } else {
-                                        errors.add(new Exception("url : " + annt.value() + " duplicated"));
-                                        return;
+                                        throw new Exception("url : " + annt.value() + " duplicated");
                                     }
                                 }
                             }
@@ -110,8 +107,7 @@ public class Utilities {
     }
 
     // Sprint 3 : call the method of the controller
-    public Object callMethod(HttpServletRequest request, HttpServletResponse response, Mapping mapping,
-            List<Exception> errors)
+    public Object callMethod(HttpServletRequest request, HttpServletResponse response, Mapping mapping)
             throws Exception {
         try {
             // get the class
@@ -122,17 +118,15 @@ public class Utilities {
             Method method = clazz.getMethod(mapping.getValue().trim());
             return (Object) method.invoke(obj);
         } catch (Exception e) {
-            errors.add(e);
+            throw new Exception(e.getMessage());
         }
-        return new Object();
     }
 
     // Sprint 4 : redirect to another page and send all the attribut if the returned
     // value is ModelVIew
-    public void MappingHandler(HttpServletRequest request, HttpServletResponse response, Mapping mapping,
-            List<Exception> errors)
+    public void MappingHandler(HttpServletRequest request, HttpServletResponse response, Mapping mapping)
             throws Exception {
-        Object obj = this.callMethod(request, response, mapping, errors);
+        Object obj = this.callMethod(request, response, mapping);
         if (obj instanceof ModelView) {
             ModelView mv = (ModelView) obj;
             if (mv.getProperties() != null && !mv.getProperties().isEmpty()) {
@@ -142,12 +136,12 @@ public class Utilities {
                     if (key != null && value != null) {
                         request.setAttribute(key, value);
                     } else {
-                        errors.add(new Exception("Null key or value found: key = " + key + ", value = " + value));
+                        throw new Exception("Null key or value found: key = " + key + ", value = " + value);
                     }
                 }
                 request.getRequestDispatcher(mv.getUrl()).forward(request, response);
             } else {
-                errors.add(new Exception("The properties HashMap is null or empty."));
+                throw new Exception("The properties HashMap is null or empty.");
             }
 
             // Construct the correct relative URL
@@ -165,18 +159,18 @@ public class Utilities {
                 out.println("<p>Value returned : " + obj + "</p>");
             }
         } else {
-            errors.add(new Exception("the return value an controler methods must be String or ModelView"));
+            throw new Exception("the return value an controler methods must be String or ModelView");
         }
     }
 
     // Sprint 5 : Exception handler
-    public void runFramework(HttpServletRequest request, HttpServletResponse response, List<Exception> errors)
+    public void runFramework(HttpServletRequest request, HttpServletResponse response)
             throws Exception {
         if (this.ifMethod(request, this.hashMap) != null) {
             Mapping mapping = this.ifMethod(request, this.hashMap);
-            this.MappingHandler(request, response, mapping, errors);
+            this.MappingHandler(request, response, mapping);
         } else {
-            errors.add(new Exception("Il n'y a pas de methode associee a cet url"));
+            throw new Exception("Il n'y a pas de methode associee a cet url");
         }
     }
 

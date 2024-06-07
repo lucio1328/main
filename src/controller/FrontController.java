@@ -17,7 +17,6 @@ public class FrontController extends HttpServlet {
     List<String> controllerList;
     HashMap<String, Mapping> urlMethod;
     Utilities utl;
-    List<Exception> errors = new ArrayList<Exception>();
 
     @Override
     public void init() throws ServletException {
@@ -25,34 +24,22 @@ public class FrontController extends HttpServlet {
         urlMethod = new HashMap<>();
         utl = new Utilities();
         try {
-            utl.initializeControllers(this, this.controllerList, urlMethod, errors);
+            utl.initializeControllers(this, this.controllerList, urlMethod);
         } catch (Exception e) {
-
+            
         }
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, Exception {
-        response.setContentType("text/html;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        if (!this.errors.isEmpty()) {
-            for (Exception e : this.errors) {
-                out.println(e.getMessage());
-            }
-            errors.clear();
-        } else {
+            response.setContentType("text/html;charset=UTF-8");
+            PrintWriter out = response.getWriter();
             try {
-                utl.runFramework(request, response, this.errors);
-                if (!this.errors.isEmpty()) {
-                    for (Exception e : this.errors) {
-                        out.println(e.getMessage());
-                    }
-                    errors.clear();
-                }
+                utl.runFramework(request, response);
             } catch (Exception e) {
                 out.println("Error: " + e.getMessage());
             }
-        }
+
     }
 
     @Override
