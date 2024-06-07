@@ -2,82 +2,56 @@ package controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import util.Mapping;
+import util.Utilities;
+
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.swing.RowFilter.Entry;
-
 import java.util.ArrayList;
 import java.util.HashMap;
-import util.*;
 
 public class FrontController extends HttpServlet {
     List<String> controllerList;
     HashMap<String, Mapping> urlMethod;
     Utilities utl;
+    List<Exception> errors = new ArrayList<Exception>();
 
     @Override
     public void init() throws ServletException {
         controllerList = new ArrayList<>();
         urlMethod = new HashMap<>();
         utl = new Utilities();
-        utl.initializeControllers(this, this.controllerList, urlMethod);
+        try {
+            utl.initializeControllers(this, this.controllerList, urlMethod, errors);
+        } catch (Exception e) {
+
+        }
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException, ClassNotFoundException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, SecurityException, InstantiationException, IllegalArgumentException {
+            throws ServletException, IOException, Exception {
         response.setContentType("text/html;charset=UTF-8");
-
-        try (PrintWriter out = response.getWriter()) {
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>FrontController</title>");
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet FrontController</h1>");
-            out.println("<p>" + request.getRequestURL() + "</p>");
-            if (utl.ifMethod(request, this.urlMethod) != null) {
-                Mapping mapping = utl.ifMethod(request, this.urlMethod);
-                out.println("<p> Classe : " + mapping.getKey() + "</p>");
-                out.println("<p> Mehtode: " + mapping.getValue() + "</p>");
-                String classe = mapping.getKey();
-                String methodeName = mapping.getValue();
-                Class<?> clazz = Class.forName(classe);
-                Object o = clazz.getDeclaredConstructor().newInstance();
-                Method method = clazz.getMethod(methodeName, null);
-                Object result = method.invoke(o, null);
-                if (result != null) {
-                    if(result instanceof String){
-                        out.println("<p>Résultat de la méthode : " + result.toString() + "</p>");
-                    }
-                    else if (result instanceof ModelView) {
-                        ModelView mv = (ModelView) result;
-                        out.println("<p>ModelView detected.</p>");
-                        out.println("<p>URL: " + mv.getUrl() + "</p>");
-                        out.println("<p>Model Data:</p>");
-                        out.println("<ul>");
-                        for (Map.Entry<String, Object> entry : mv.getData().entrySet()) {
-                            request.setAttribute(entry.getKey(), entry.getValue());
-                        }
-                        request.getRequestDispatcher(mv.getUrl()).forward(request, response);
-                        out.println("</ul>");
-                    }
-                }
-            }else{
-                out.println("<p> Error 404 : Not found </p>");
+        PrintWriter out = response.getWriter();
+        if (!this.errors.isEmpty()) {
+            for (Exception e : this.errors) {
+                out.println(e.getMessage());
             }
-
-            out.println("</body>");
-            out.println("</html>");
+            errors.clear();
+        } else {
+            try {
+                utl.runFramework(request, response, this.errors);
+                if (!this.errors.isEmpty()) {
+                    for (Exception e : this.errors) {
+                        out.println(e.getMessage());
+                    }
+                    errors.clear();
+                }
+            } catch (Exception e) {
+                out.println("Error: " + e.getMessage());
+            }
         }
     }
 

@@ -3,39 +3,28 @@ package util;
 import java.util.HashMap;
 
 public class ModelView {
-    /* Attributs */
-    String url;
-    HashMap<String, Object> data;
+    String url;                         //This is the url of the page 
+    HashMap<String,Object> properties;  //Attribut that  contains all the object that will be send to the page
 
-    /* COnstructors */
-    public ModelView(String url) {
-        setUrl(url);
+    public ModelView(){
+        properties = new HashMap<>();
     }
-    public ModelView() {
-        data = new HashMap<>();
+    //Method that will be used 
+    public void addObjet(String key,Object obj) {           //Method that used to add values to the controler
+        this.properties.put(key,obj);    
     }
-    /* Getters et Setters */
-    public String getUrl() {
-        return url;
-    }
+
+    //Getter and setter 
     public void setUrl(String url) {
-        this.url = url;
+        this.url = url;	
     }
-    public HashMap<String, Object> getData() {
-        return data;
+    public String getUrl() {
+        return this.url;
     }
-    public void setData(HashMap<String, Object> data) {
-        this.data = data;
+    public void setProperties(HashMap<String,Object> properties) {
+        this.properties = properties;
     }
-
-    /* Add object */
-    public void addObject(String nomVar, Object valeur) {
-        data.put(nomVar, valeur);
-    }
-
-    /* get object */
-    public Object getObject(){
-        Object o = (Object) data.values();
-        return o;
+    public HashMap<String,Object> getProperties() {
+        return this.properties;
     }
 }
