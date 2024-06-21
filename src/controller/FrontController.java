@@ -2,6 +2,8 @@ package controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
@@ -12,7 +14,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import util.Mapping;
 import util.ModelView;
 import annotation.Controller;
+import annotation.FieldAnnotation;
 import annotation.Get;
+import annotation.ObjectParam;
 import annotation.Post;
 import annotation.RequestParam;
 
@@ -200,25 +204,49 @@ public class FrontController extends HttpServlet {
     }
     
 
-    private Object[] getMethodParameters(Method method, HttpServletRequest request) {
+    private Object[] getMethodParameters(Method method, HttpServletRequest request) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
         Parameter[] parameters = method.getParameters();
         Object[] paramValues = new Object[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
             RequestParam requestParam = parameters[i].getAnnotation(RequestParam.class);
+            ObjectParam objectParam = parameters[i].getAnnotation(ObjectParam.class);
             if (requestParam != null) {
                 String paramName = requestParam.value();
                 String paramValue = request.getParameter(paramName);
  
                 paramValues[i] = convertParameterValue(paramValue, parameters[i].getType());
-            } else {
-                Class<?> paramType = parameters[i].getType();
-                if (paramType.equals(HttpServletRequest.class)) {
-                    paramValues[i] = request;
-                } 
-                else{
-                    paramValues[i] = null; 
+            } 
+            else if(objectParam != null){
+                String objectName = objectParam.value();
+                Class<?> classe = parameters[i].getType();
+                Object o = classe.getDeclaredConstructor().newInstance();
+                Map<String, String[]> parametreMap = request.getParameterMap();
+                for(Map.Entry<String, String[]> entry : parametreMap.entrySet()){
+                    String paramName = entry.getKey();
+                    String[] tab = paramName.split("\\.");
+                    
+                    String nomParam = tab[0];
+                    String field = tab[1];
+                    if(tab.length < 2) continue;
+                    Field[] fields = classe.getDeclaredFields();
+                    for(Field f : fields){
+                        String fieldValue = null;
+                        FieldAnnotation fieldAnnotation = f.getAnnotation(FieldAnnotation.class);
+                        if(fieldAnnotation != null && f.getName().equalsIgnoreCase(fieldAnnotation.name())){
+                            fieldValue = request.getParameter(paramName);
+                        }
+                        else if(f.getName().equalsIgnoreCase(field)){
+                            fieldValue = request.getParameter(paramName);
+                        }
+
+                        if(fieldValue != null){
+                            f.setAccessible(true);
+                            f.set(o, convertParameterValue(fieldValue, f.getType()));
+                        }
+                    }
                 }
+                paramValues[i] = o;
             }
         }
         return paramValues;
