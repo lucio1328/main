@@ -21,9 +21,13 @@ import annotation.Get;
 import annotation.ObjectParam;
 import annotation.Post;
 import annotation.RequestParam;
+import annotation.Restapi;
 
 import java.util.List;
 import java.util.Map;
+
+import com.google.gson.Gson;
+
 import java.util.ArrayList;
 import jakarta.servlet.ServletContext;
 import java.io.File;
@@ -36,6 +40,7 @@ public class FrontController extends HttpServlet {
     private List<String> controllerList = new ArrayList<>();
     private Map<String, Mapping> urlMappings = new HashMap<>();
     private boolean initialized = false;
+    Gson gson = new Gson();
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
@@ -63,7 +68,7 @@ public class FrontController extends HttpServlet {
             out.println("<!DOCTYPE html>");
             out.println("<html>");
             out.println("<head>");
-            out.println("<title>FrontController</title>");
+            out.println("<title>Framework</title>");
             out.println("</head>");
             out.println("<body>");
             out.println("<p><b>URL:</b> " + requestURL + "</p>");
@@ -120,17 +125,35 @@ public class FrontController extends HttpServlet {
                             }
                         }
 
-                        if (result instanceof String) {
-                            out.println("<br>Method Invocation Result: " + result);
-                        } 
-                        else if (result instanceof ModelView) {
-                            ModelView modelAndView = (ModelView) result;
-                            for (String key : modelAndView.getData().keySet()) {
-                                request.setAttribute(key, modelAndView.getData().get(key));
+                        boolean isRestApi = method.isAnnotationPresent(Restapi.class);
+
+                        if (isRestApi) {
+                            response.setContentType("application/json;charset=UTF-8");
+                            String jsonResponse;
+                            if (result instanceof ModelView) {
+                                ModelView modelAndView = (ModelView) result;
+                                jsonResponse = gson.toJson(modelAndView.getData());
+                                    out.print(jsonResponse);
+                            } else {
+                                jsonResponse = gson.toJson(result);
+                                    out.print(jsonResponse);
                             }
-                            request.getRequestDispatcher(modelAndView.getUrl()).forward(request, response);
+                            return;
+                        }                         
+                        else {
+                            if (result instanceof String){
+                                out.println(result);
+                            }
+                            else if (result instanceof ModelView) {
+                                ModelView modelAndView = (ModelView) result;
+                                for (String key : modelAndView.getData().keySet()) {
+                                    request.setAttribute(key, modelAndView.getData().get(key));
+                                }
+                                request.getRequestDispatcher(modelAndView.getUrl()).forward(request, response);
+                            }
                             return;
                         }
+                        
                     } catch (InvocationTargetException e) {
                         Throwable cause = e.getCause();
                         if(cause instanceof Exception){
@@ -140,6 +163,7 @@ public class FrontController extends HttpServlet {
                             throw new Exception("Erreur lors de l'invocation : "+cause.getMessage());
                         }
                     }
+                        
                 } catch (Exception e) {
                     out.println("Error invoking method: " + e.getMessage());
                     for (StackTraceElement element : e.getStackTrace()) {
