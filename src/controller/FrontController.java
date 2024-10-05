@@ -17,11 +17,11 @@ import util.Mapping;
 import util.ModelView;
 import annotation.Controller;
 import annotation.FieldAnnotation;
-import annotation.Get;
 import annotation.ObjectParam;
 import annotation.Post;
 import annotation.RequestParam;
 import annotation.Restapi;
+import annotation.Url;
 
 import java.util.List;
 import java.util.Map;
@@ -101,6 +101,14 @@ public class FrontController extends HttpServlet {
                         throw new NoSuchMethodException("Method " + map.getValue() + " not found in class " + map.getKey());
                     }
 
+                    // Tester verb
+                    if (map.getVerb().equalsIgnoreCase(requestMethod)) {
+                        response.getWriter().write("La methode HTTP correspond : " + requestMethod);
+                    } 
+                    else {
+                        throw new Exception("La methode Http ne correspond pas a l'annotation de la methode");
+                    }
+
                     try {
                         Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
                         Field[] fields = clazz.getDeclaredFields();
@@ -133,12 +141,11 @@ public class FrontController extends HttpServlet {
                             if (result instanceof ModelView) {
                                 ModelView modelAndView = (ModelView) result;
                                 jsonResponse = gson.toJson(modelAndView.getData());
-                                    out.print(jsonResponse);
+                                out.println(jsonResponse);
                             } else {
                                 jsonResponse = gson.toJson(result);
-                                    out.print(jsonResponse);
+                                out.println(jsonResponse);
                             }
-                            return;
                         }                         
                         else {
                             if (result instanceof String){
@@ -150,8 +157,8 @@ public class FrontController extends HttpServlet {
                                     request.setAttribute(key, modelAndView.getData().get(key));
                                 }
                                 request.getRequestDispatcher(modelAndView.getUrl()).forward(request, response);
+                                request.getMethod();
                             }
-                            return;
                         }
                         
                     } catch (InvocationTargetException e) {
@@ -240,8 +247,8 @@ public class FrontController extends HttpServlet {
                         controllerList.add(className);
                         Method[] methods = clazz.getDeclaredMethods();
                         for (Method method : methods) {
-                            if (method.isAnnotationPresent(Get.class) || method.isAnnotationPresent(Post.class)) {
-                                validateAndRegisterMethod(clazz, method);
+                            if (method.isAnnotationPresent(Url.class)) {
+                                validationMethode(clazz, method);
                             }
                         }
                     }
@@ -252,21 +259,23 @@ public class FrontController extends HttpServlet {
         }
     }
 
-    private void validateAndRegisterMethod(Class<?> clazz, Method method) throws Exception {
+    private void validationMethode(Class<?> clazz, Method method) throws Exception {
         if (method.getReturnType().equals(String.class) || method.getReturnType().equals(ModelView.class)) {
-            String urlName = null;
-            if (method.isAnnotationPresent(Get.class)) {
-                Get getAnnotation = method.getAnnotation(Get.class);
-                urlName = getAnnotation.url();
-            } else if (method.isAnnotationPresent(Post.class)) {
-                Post postAnnotation = method.getAnnotation(Post.class);
-                urlName = postAnnotation.url();
+            String url = null;
+            if (method.isAnnotationPresent(Url.class)) {
+                Url getAnnotation = method.getAnnotation(Url.class);
+                url = getAnnotation.url();
             }
 
-            if (urlName != null && urlMappings.containsKey(urlName)) {
-                throw new Exception("URL " + urlName + " is already defined.");
-            } else if (urlName != null) {
-                urlMappings.put(urlName, new Mapping(clazz.getName(), method.getName()));
+            if (url != null && urlMappings.containsKey(url)) {
+                throw new Exception("URL " + url + " is already defined.");
+            } else if (url != null) {
+                if(method.isAnnotationPresent(Post.class)){
+                    urlMappings.put(url, new Mapping(clazz.getName(), method.getName(),"POST"));
+                }
+                else{
+                    urlMappings.put(url, new Mapping(clazz.getName(), method.getName(),"GET"));
+                }
             }
         } else {
             throw new Exception("Method return type must be String or ModelAndView.");

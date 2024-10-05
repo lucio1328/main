@@ -6,9 +6,12 @@ import java.util.Map;
 public class Mapping {
     String nameClass;
     String nameMethod; 
-    public Mapping(String controlleur, String methode) {
+    String verb;
+    
+    public Mapping(String controlleur, String methode, String verb) {
         this.nameClass = controlleur;
         this.nameMethod = methode;
+        this.verb = verb;
     }
     public Mapping(){
 
@@ -24,5 +27,12 @@ public class Mapping {
 
     public String getKey(){
         return nameClass;
+    }
+
+    public String getVerb() {
+        return verb;
+    }
+    public void setVerb(String verb) {
+        this.verb = verb;
     }
 }
