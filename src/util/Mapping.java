@@ -1,17 +1,19 @@
 package util;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Mapping {
     String nameClass;
     String nameMethod; 
-    String verb;
+    List<VerbAction> verbActions = new ArrayList<>();
     
-    public Mapping(String controlleur, String methode, String verb) {
-        this.nameClass = controlleur;
-        this.nameMethod = methode;
-        this.verb = verb;
+    public Mapping(String nameClass, String nameMethod, VerbAction verbAction) {
+        this.nameClass = nameClass;
+        this.nameMethod = nameMethod;
+        this.verbActions.add(verbAction);
     }
     public Mapping(){
 
@@ -29,10 +31,10 @@ public class Mapping {
         return nameClass;
     }
 
-    public String getVerb() {
-        return verb;
+    public List<VerbAction> getVerbActions() {
+        return verbActions;
     }
-    public void setVerb(String verb) {
-        this.verb = verb;
+    public void setVerbActions(List<VerbAction> verbActions) {
+        this.verbActions = verbActions;
     }
 }

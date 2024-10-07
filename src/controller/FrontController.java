@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpSession;
 import util.CustomerSession;
 import util.Mapping;
 import util.ModelView;
+import util.VerbAction;
 import annotation.Controller;
 import annotation.FieldAnnotation;
 import annotation.ObjectParam;
@@ -102,7 +103,7 @@ public class FrontController extends HttpServlet {
                     }
 
                     // Tester verb
-                    if (map.getVerb().equalsIgnoreCase(requestMethod)) {
+                    if (VerbAction.testVerbAction(mappedURL, requestMethod) == 0) {
                         response.getWriter().write("La methode HTTP correspond : " + requestMethod);
                     } 
                     else {
@@ -271,10 +272,10 @@ public class FrontController extends HttpServlet {
                 throw new Exception("URL " + url + " is already defined.");
             } else if (url != null) {
                 if(method.isAnnotationPresent(Post.class)){
-                    urlMappings.put(url, new Mapping(clazz.getName(), method.getName(),"POST"));
+                    urlMappings.put(url, new Mapping(clazz.getName(), method.getName(), new VerbAction(url, "POST")));
                 }
                 else{
-                    urlMappings.put(url, new Mapping(clazz.getName(), method.getName(),"GET"));
+                    urlMappings.put(url, new Mapping(clazz.getName(), method.getName(), new VerbAction(url, "GET")));
                 }
             }
         } else {
