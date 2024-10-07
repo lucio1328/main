@@ -179,7 +179,8 @@ public class FrontController extends HttpServlet {
                     }
                 }
             } else {
-                out.println("<p>No associated method found for this URL.</p>");
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                response.getWriter().write("404 - Page Not Found");
             }
 
             out.println("</body>");
