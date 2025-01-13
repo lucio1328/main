@@ -72,10 +72,10 @@ public class FrontController extends HttpServlet {
                         "}\n" + //
                         "\n" + //
                         ".stack-trace {\n" + //
-                        "    font-family: monospace;\n" + //
+                        "    \n" + //
                         "    margin-top: 10px;\n" + //
                         "    padding: 10px;\n" + //
-                        "    background-color: #f8f8f8;\n" + //
+                        "    \n" + //
                         "    border: 1px solid #ccc;\n" + //
                         "}\n" + //
                         "</style>");
