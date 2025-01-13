@@ -63,13 +63,14 @@ public class FrontController extends HttpServlet {
             String baseUrl = getBaseUrl(request);
 
             sb.append("<!DOCTYPE html>");
-            sb.append("<html>");
+            sb.append("<html lang='fr'>");
+            sb.append("<meta charset=\"UTF-8\">");
             sb.append("<head>");
             sb.append("<title>FrontController</title>");
             sb.append("<style>.error-message {\n" + //
                         "    color: red;\n" + //
                         "    font-weight: bold;\n" + //
-                        "}\n" + //
+                        "}\n" + //22,k
                         "\n" + //
                         ".stack-trace {\n" + //
                         "    \n" + //
@@ -84,7 +85,7 @@ public class FrontController extends HttpServlet {
             sb.append("<p><b>URL:</b> " + requestURL + "</p>");
             sb.append("<p><b>Methode HTTP:</b> " + requestMethod + "</p>");
 
-            sb.append("<p><b>Controleurs Disponibles:</b></p>");
+            sb.append("<p><b2>Controleurs Disponibles:</b2></p>");
             sb.append("<ul>");
             for (String controller : controllerList) {
                 sb.append("<li>" + controller + "</li>");
@@ -139,6 +140,7 @@ public class FrontController extends HttpServlet {
 
                         MethodScan methodScan=new MethodScan(handleError,method, request);
 
+                        methodScan.authentification();
                         Object[] methodParam=methodScan.getMethodParameters();
                         Object result = method.invoke(controllerInstance,methodParam );
 
@@ -152,10 +154,10 @@ public class FrontController extends HttpServlet {
                                 
                                 if (relativePath.isEmpty() || relativePath.equals("/")) {
                                     
-                                    request.getRequestDispatcher("/index.jsp").forward(request, response);
+                                    response.sendRedirect(request.getContextPath()+"/index.jsp");
                                 } else {
                                      
-                                    request.getRequestDispatcher("/" + relativePath).forward(request, response);
+                                    response.sendRedirect(request.getContextPath()+"/" + relativePath);
                                 }
                                 return;
                             }
