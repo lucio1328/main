@@ -7,6 +7,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface FieldAnnotation {
-    String name();
+public @interface DateFormat {
+    String format() default "yyyy-MM-dd";
+    String message() default "Le format de date est invalide.";
 }
