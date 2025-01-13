@@ -7,13 +7,19 @@ import java.lang.reflect.Parameter;
 import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 
+import annotation.Authentification;
+import annotation.DateFormat;
 import annotation.FieldAnnotation;
 import annotation.Numeric;
 import annotation.Param;
 import annotation.ParamObject;
+import annotation.Range;
 import annotation.Required;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -26,6 +32,38 @@ public class MethodScan {
     private Map<String, String> handleError;
     private Method method;
     private HttpServletRequest request;
+
+    // authentification
+    public void authentification() throws Exception {
+        if (method.isAnnotationPresent(Authentification.class)) {
+            Authentification auth = method.getAnnotation(Authentification.class);
+            HttpSession session = request.getSession(false);
+
+            if (session != null && Boolean.TRUE.equals(session.getAttribute("authenticated"))) {
+                String rolesInSession = (String) session.getAttribute("role"); 
+                if (rolesInSession != null && !rolesInSession.isBlank()) {
+
+                    List<String> userRoles = Arrays.asList(rolesInSession.split(","));
+
+
+                    if (!auth.name().isBlank()) {
+                        String[] authorizedRoles = auth.name().split(",");
+                        boolean isAuthorized = Arrays.stream(authorizedRoles)
+                                                    .map(String::trim)
+                                                    .anyMatch(userRoles::contains);
+
+                        if (!isAuthorized) {
+                            throw new Exception("Accès interdit : rôle insuffisant pour accéder à cette méthode.");
+                        }
+                    }
+                    return;  
+                }
+                throw new Exception("Accès interdit : aucun rôle défini dans la session.");
+            } else {
+                throw new Exception("Accès interdit : l'utilisateur n'est pas authentifié.");
+            }
+        }
+    }
 
     // Constructor to initialize the required attributes
     public MethodScan(Map<String, String> handleError, Method method, HttpServletRequest request) {
@@ -87,6 +125,9 @@ public class MethodScan {
                         field.setAccessible(true);
                         field.set(paramObject, convertParameterType(fieldValue, field.getType()));
                     }
+                    else{
+                        validateRole(paramObject, field);
+                    }
                 }
             }
         }
@@ -107,17 +148,14 @@ public class MethodScan {
 
     private void validateField(Field field, String objectName, String fieldName, String value) throws Exception {
         if (field.isAnnotationPresent(Required.class) && (value == null || value.isEmpty())) {
-            // System.out.println("\n"+ field.getAnnotation(Required.class).message());
-            handleError.put(objectName + "." + fieldName, value);
-            handleError.put(objectName + "." + fieldName + ".err", field.getAnnotation(Required.class).message());
+            addError(objectName, fieldName, field.getAnnotation(Required.class).message(), value);
         }
 
         if (field.isAnnotationPresent(Numeric.class)) {
             try {
                 Double.parseDouble(value);
             } catch (NumberFormatException e) {
-                handleError.put(objectName + "." + fieldName, value);
-                handleError.put(objectName + "." + fieldName + ".err", field.getAnnotation(Numeric.class).message());
+                addError(objectName, fieldName, field.getAnnotation(Numeric.class).message(), value);
             }
         }
 
@@ -126,8 +164,7 @@ public class MethodScan {
             try {
                 new SimpleDateFormat(dateFormat.format()).parse(value);
             } catch (ParseException e) {
-                handleError.put(objectName + "." + fieldName, value);
-                handleError.put(objectName + "." + fieldName + ".err", field.getAnnotation(annotation.DateFormat.class).message());
+                addError(objectName, fieldName, field.getAnnotation(DateFormat.class).message(), value);
             }
         }
 
@@ -140,9 +177,57 @@ public class MethodScan {
                     handleError.put(objectName + "." + fieldName + ".err", field.getAnnotation(annotation.Range.class).message());
                 }
             } catch (NumberFormatException e) {
-                handleError.put(objectName + "." + fieldName, value);
-                handleError.put(objectName + "." + fieldName + ".err", "La valeur doit être un nombre pour verifier la plage.");
+                addError(objectName, fieldName, field.getAnnotation(Range.class).message(), value);
             }
+        }
+    }
+
+    public void validateRole(Object object,Field field) throws Exception{
+        if (field.isAnnotationPresent(annotation.Role.class)) {
+            annotation.Role roleAnnotation = field.getAnnotation(annotation.Role.class);
+            String roleName = roleAnnotation.name();  
+            HttpSession session = request.getSession();  
+            if (roleName != null && !roleName.isBlank()) {
+                field.setAccessible(true);
+                field.set(object,roleName);
+                String existingRoles = (String) session.getAttribute("role");
+                if (existingRoles == null || existingRoles.isBlank()) {
+
+                    session.setAttribute("role", roleName);
+                } else {
+
+                    List<String> roleList = new ArrayList<>(Arrays.asList(existingRoles.split(",")));
+                    if (!roleList.contains(roleName)) {
+                        roleList.add(roleName);
+                        session.setAttribute("role", String.join(",", roleList));
+                    }
+                }
+            }
+
+
+            session.setAttribute("authenticated", true);
+        }
+    }
+
+    private void addError(String objectName, String fieldName, String message, String value) {
+        String key = objectName + "." + fieldName;
+        String errorKey = key + ".err";
+
+
+        handleError.put(key, value);
+
+
+        if (handleError.containsKey(errorKey)) {
+            String existingMessage = handleError.get(errorKey);
+
+
+            if (!existingMessage.contains(message)) {
+                handleError.replace(errorKey, existingMessage + "," + message);
+            }
+
+        } else {
+
+            handleError.put(errorKey, message);
         }
     }
 
