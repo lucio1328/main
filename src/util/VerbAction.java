@@ -1,18 +1,11 @@
 package util;
 
 public class VerbAction {
-    String methodeAction;
     String verb;
-    
-    public VerbAction(String methodeAction, String verb) {
-        this.methodeAction = methodeAction;
+    String action;
+    public VerbAction(String verb, String action) {
         this.verb = verb;
-    }
-    public String getMethodeAction() {
-        return methodeAction;
-    }
-    public void setMethodeAction(String methodeAction) {
-        this.methodeAction = methodeAction;
+        this.action = action;
     }
     public String getVerb() {
         return verb;
@@ -20,12 +13,17 @@ public class VerbAction {
     public void setVerb(String verb) {
         this.verb = verb;
     }
+    public String getAction() {
+        return action;
+    }
+    public void setAction(String action) {
+        this.action = action;
+    }
 
-    /* Tester verb */
-    public static int testVerbAction(String methodAction, String verb) {
-        if(methodAction.equalsIgnoreCase(methodAction) && verb.equalsIgnoreCase(verb)){
-            return 0;
+    public boolean testVerbAction(String verb,String action){
+        if(this.verb.equalsIgnoreCase(verb) && this.action.equals(action)){
+            return true;
         }
-        return 1;
+        return false;
     }
 }
